@@ -23,8 +23,21 @@ if (dir.exists(global_scripts_path)) {
 # 生成完整的應用程式 UI
 # ==========================================
 generate_app_ui <- function(config, module_manager = NULL) {
-  # 檢查是否有登入模組
-  has_login_module <- !is.null(config$modules$login) && isTRUE(config$modules$login$enabled)
+  # 檢查是否有登入模組（支援 named map 與 list of id:... 兩種 YAML 格式）
+  mods <- config$modules
+  has_login_module <- FALSE
+  if (is.list(mods)) {
+    # Case A: named map — modules: { login: { enabled: true, ... } }
+    if (!is.null(mods$login)) {
+      has_login_module <- isTRUE(mods$login$enabled)
+    } else {
+      # Case B: YAML list of entries — modules: [ { id: login, enabled: true } ]
+      login_entry <- Filter(function(m) identical(m$id, "login"), mods)
+      if (length(login_entry) > 0) {
+        has_login_module <- isTRUE(login_entry[[1]]$enabled)
+      }
+    }
+  }
 
   if (has_login_module) {
     return(generate_conditional_login_ui(config, module_manager))
