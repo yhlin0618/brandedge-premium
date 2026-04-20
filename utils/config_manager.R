@@ -63,6 +63,10 @@ load_app_config <- function(config_path = "app_config_advanced.yaml",
   # 處理環境變數替換
   config <- process_env_vars(config)
 
+  # 正規化 modules：支援 YAML list-of-entries 與 named-map 兩種寫法
+  # (DRY: load_modular_config 也做同樣事，這裡統一保底)
+  config <- normalize_modules_shape(config)
+
   # 驗證配置
   validate_config(config)
 
@@ -71,6 +75,30 @@ load_app_config <- function(config_path = "app_config_advanced.yaml",
 
   class(config) <- c("app_config", class(config))
   return(config)
+}
+
+# ==========================================
+# 把 config$modules 正規化成命名列表（key = id）
+# ==========================================
+normalize_modules_shape <- function(config) {
+  mods <- config$modules
+  if (is.null(mods) || !is.list(mods)) return(config)
+
+  # Already named (either direct named-map or already normalized): 保留
+  nms <- names(mods)
+  if (!is.null(nms) && all(nzchar(nms))) return(config)
+
+  # List of entries with $id
+  named <- list()
+  for (m in mods) {
+    if (is.list(m) && !is.null(m$id) && nzchar(m$id)) {
+      named[[m$id]] <- m
+    }
+  }
+  if (length(named) > 0) {
+    config$modules <- named
+  }
+  config
 }
 
 # ==========================================
